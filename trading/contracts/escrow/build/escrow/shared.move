@@ -74,17 +74,23 @@ module escrow::shared {
 						exchange_key,
 				} = escrow;
 
+				// Check if the sender, recipient, and exchange key match the escrow object
 				assert!(recipient == ctx.sender(), EMismatchedSenderRecipient);
 				assert!(exchange_key == object::id(&key), EMismatchedExchangeObject);
 
+				// Unlock the escrowed object
 				transfer::public_transfer(locked.unlock(key), sender);
 
+				// Emit an event for the swapping of the escrow object
 				event::emit(EscrowSwapped {
+						// Adding the escrow id to the event
 						escrow_id: id.to_inner(),
 				});
 
+				// Delete the escrow object
 				id.delete();
 
+				// Return the escrowed object
 				escrowed
 		}
 
@@ -151,14 +157,19 @@ module escrow::shared {
 		#[test_only] const BOB: address = @0xB;
 		#[test_only] const DIANE: address = @0xD;
 
+		// Test function to create a coin for testing
 		#[test_only]
 		fun test_coin(ts: &mut Scenario): Coin<SUI> {
 				coin::mint_for_testing<SUI>(42, ts.ctx())
 		}
+
+		// Test function to test the creation of an escrow object
 		#[test]
 		fun test_successful_swap() {
+				// Creating a new test scenario
 				let mut ts = ts::begin(@0x0);
 
+				// Coin created by Bob & locked
 				let (i2, ik2) = {
 						ts.next_tx(BOB);
 						let c = test_coin(&mut ts);
@@ -170,11 +181,14 @@ module escrow::shared {
 						(cid, kid)
 				};
 
+				// Coin created by Alice & escrowed
 				let i1 = {
 						ts.next_tx(ALICE);
 						let c = test_coin(&mut ts);
 						let cid = object::id(&c);
+						// Creating the escrow object
 						create(c, ik2, BOB, ts.ctx());
+						// Returning the coin id
 						cid
 				};
 
