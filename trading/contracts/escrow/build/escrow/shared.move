@@ -1,40 +1,49 @@
+// Creating shared object for escrow module
 module escrow::shared {
+		// Importing the sui module
 		use sui::{
 				event,
 				dynamic_object_field::{Self as dof}
 		};
 
+		// Importing the lock module
 		use escrow::lock::{Locked, Key};
 
 		public struct EscrowedObjectKey has copy, store, drop {}
 
+		// Escrow is a generic struct that holds the escrowed object, the sender, the recipient, and the exchange key
+		// Defining a new type(T) to hold the escrowed object
 		public struct Escrow<phantom T: key + store> has key, store {
+				// Adding properties to the Escrow object struct
 				id: UID,
-
 				sender: address,
-
 				recipient: address,
-
 				exchange_key: ID,
 		}
 
+		// Error code for mismatched sender and recipient
 		const EMismatchedSenderRecipient: u64 = 0;
-
+		// Error code for mismatched exchange object
 		const EMismatchedExchangeObject: u64 = 1;
 
+		// Create function to create an escrow object
 		public fun create<T: key + store>(
+				// Defining the properties of the escrowed object
 				escrowed: T,
 				exchange_key: ID,
 				recipient: address,
 				ctx: &mut TxContext
 		) {
+				// Creating a new escrow object
 				let mut escrow = Escrow<T> {
 						id: object::new(ctx),
 						sender: ctx.sender(),
 						recipient,
 						exchange_key,
 				};
+				// Emitting an event for the creation of the escrow object
 				event::emit(EscrowCreated {
+						// Adding the properties of the escrow object to the event
 						escrow_id: object::id(&escrow),
 						key_id: exchange_key,
 						sender: escrow.sender,
@@ -42,11 +51,14 @@ module escrow::shared {
 						item_id: object::id(&escrowed),
 				});
 
+				// Adding the escrowed object to the escrow object
 				dof::add(&mut escrow.id, EscrowedObjectKey {}, escrowed);
 
+				// Sharing the escrow object
 				transfer::public_share_object(escrow);
 		}
 
+		// Swap function to swap the escrowed object
 		public fun swap<T: key + store, U: key + store>(
 				mut escrow: Escrow<T>,
 				key: Key,
@@ -76,29 +88,41 @@ module escrow::shared {
 				escrowed
 		}
 
+		// Return to sender function to return the escrowed object to the sender
+		// The escrow object is deleted after the object is returned to the sender
 		public fun return_to_sender<T: key + store>(
+				// Defining the properties of the escrow object
 				mut escrow: Escrow<T>,
 				ctx: &TxContext
 		): T {
-
+				// Removing the escrowed object from the escrow object
 				event::emit(EscrowCancelled {
+						// Adding the escrow id to the event
 						escrow_id: object::id(&escrow)
 				});
 
+				// Removing the escrowed object from the escrow object
 				let escrowed = dof::remove<EscrowedObjectKey, T>(&mut escrow.id, EscrowedObjectKey {});
 
+				// Destructuring the escrow object
 				let Escrow {
+						// Extracting the properties of the escrow object
 						id,
 						sender,
 						recipient: _,
 						exchange_key: _,
 				} = escrow;
 
+				// Transfer the escrowed object back to the sender
 				assert!(sender == ctx.sender(), EMismatchedSenderRecipient);
+				// Delete the escrow object
 				id.delete();
+				// Return the escrowed object
 				escrowed
 		}
 
+		// Event for the creation of an escrow object
+		// The event contains the escrow id, the key id, the sender, the recipient, and the item id
 		public struct EscrowCreated has copy, drop {
 				escrow_id: ID,
 				key_id: ID,
@@ -107,10 +131,12 @@ module escrow::shared {
 				item_id: ID,
 		}
 
+		// Event for the swapping of an escrow object
 		public struct EscrowSwapped has copy, drop {
 				escrow_id: ID
 		}
 
+		// Event for the cancellation of an escrow object
 		public struct EscrowCancelled has copy, drop {
 				escrow_id: ID
 		}
