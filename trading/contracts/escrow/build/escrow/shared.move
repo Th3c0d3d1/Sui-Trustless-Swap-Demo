@@ -11,9 +11,10 @@ module escrow::shared {
 
 		public struct EscrowedObjectKey has copy, store, drop {}
 
-		// Escrow is a generic struct that holds the escrowed object, the sender, the recipient, and the exchange key
+		// Escrow is the generic struct that holds the escrowed object, the sender, the recipient, and the exchange key
 		// Defining a new type(T) to hold the escrowed object
 		public struct Escrow<phantom T: key + store> has key, store {
+
 				// Adding properties to the Escrow object struct
 				id: UID,
 				sender: address,
@@ -23,11 +24,13 @@ module escrow::shared {
 
 		// Error code for mismatched sender and recipient
 		const EMismatchedSenderRecipient: u64 = 0;
+
 		// Error code for mismatched exchange object
 		const EMismatchedExchangeObject: u64 = 1;
 
 		// Create function to create an escrow object
 		public fun create<T: key + store>(
+
 				// Defining the properties of the escrowed object
 				escrowed: T,
 				exchange_key: ID,
@@ -41,9 +44,10 @@ module escrow::shared {
 						recipient,
 						exchange_key,
 				};
-				// Emitting an event for the creation of the escrow object
+				// Emitting an event for the creation of the escrowed object
 				event::emit(EscrowCreated {
-						// Adding the properties of the escrow object to the event
+
+						// Adding the properties of the escrowed object to the event
 						escrow_id: object::id(&escrow),
 						key_id: exchange_key,
 						sender: escrow.sender,
@@ -54,7 +58,7 @@ module escrow::shared {
 				// Adding the escrowed object to the escrow object
 				dof::add(&mut escrow.id, EscrowedObjectKey {}, escrowed);
 
-				// Sharing the escrow object
+				// Sharing the escrowed object
 				transfer::public_share_object(escrow);
 		}
 
@@ -74,20 +78,21 @@ module escrow::shared {
 						exchange_key,
 				} = escrow;
 
-				// Check if the sender, recipient, and exchange key match the escrow object
+				// Check if the sender, recipient, and exchange key match the escrowed object
 				assert!(recipient == ctx.sender(), EMismatchedSenderRecipient);
 				assert!(exchange_key == object::id(&key), EMismatchedExchangeObject);
 
 				// Unlock the escrowed object
 				transfer::public_transfer(locked.unlock(key), sender);
 
-				// Emit an event for the swapping of the escrow object
+				// Emit an event for the swapping of the escrowed object
 				event::emit(EscrowSwapped {
+
 						// Adding the escrow id to the event
 						escrow_id: id.to_inner(),
 				});
 
-				// Delete the escrow object
+				// Delete the escrowed object
 				id.delete();
 
 				// Return the escrowed object
@@ -95,14 +100,16 @@ module escrow::shared {
 		}
 
 		// Return to sender function to return the escrowed object to the sender
-		// The escrow object is deleted after the object is returned to the sender
+		// The escrowed object is deleted after the object is returned to the sender
 		public fun return_to_sender<T: key + store>(
+			
 				// Defining the properties of the escrow object
 				mut escrow: Escrow<T>,
 				ctx: &TxContext
 		): T {
 				// Removing the escrowed object from the escrow object
 				event::emit(EscrowCancelled {
+
 						// Adding the escrow id to the event
 						escrow_id: object::id(&escrow)
 				});
@@ -112,6 +119,7 @@ module escrow::shared {
 
 				// Destructuring the escrow object
 				let Escrow {
+
 						// Extracting the properties of the escrow object
 						id,
 						sender,
@@ -121,14 +129,16 @@ module escrow::shared {
 
 				// Transfer the escrowed object back to the sender
 				assert!(sender == ctx.sender(), EMismatchedSenderRecipient);
-				// Delete the escrow object
+
+				// Delete the escrowed object
 				id.delete();
+
 				// Return the escrowed object
 				escrowed
 		}
 
-		// Event for the creation of an escrow object
-		// The event contains the escrow id, the key id, the sender, the recipient, and the item id
+		// Indexing event for the query of an escrowed object
+		// The event contains the escrowed id, the key id, the sender, the recipient, and the item id
 		public struct EscrowCreated has copy, drop {
 				escrow_id: ID,
 				key_id: ID,
@@ -137,16 +147,17 @@ module escrow::shared {
 				item_id: ID,
 		}
 
-		// Event for the swapping of an escrow object
+		// Event for the swapping of an escrowed object
 		public struct EscrowSwapped has copy, drop {
 				escrow_id: ID
 		}
 
-		// Event for the cancellation of an escrow object
+		// Event for the cancellation of an escrowed object
 		public struct EscrowCancelled has copy, drop {
 				escrow_id: ID
 		}
 
+		// Module importing & variable declaration for testing
 		#[test_only] use sui::coin::{Self, Coin};
 		#[test_only] use sui::sui::SUI;
 		#[test_only] use sui::test_scenario::{Self as ts, Scenario};
@@ -163,19 +174,32 @@ module escrow::shared {
 				coin::mint_for_testing<SUI>(42, ts.ctx())
 		}
 
-		// Test function to test the creation of an escrow object
+		// Test function for creation of a successful swap
 		#[test]
 		fun test_successful_swap() {
-				// Creating a new test scenario
+
+				// Call to begin the test scenario
+				// Address passed to begin does not matter (@0x0)
 				let mut ts = ts::begin(@0x0);
 
 				// Coin created by Bob & locked
 				let (i2, ik2) = {
+						// Identify Bob
 						ts.next_tx(BOB);
+
+						// Assign Bob's coin to variable
 						let c = test_coin(&mut ts);
+
+						// Assign Bob's coin an object id
 						let cid = object::id(&c);
+
+						// Lock the coin
 						let (l, k) = lock::lock(c, ts.ctx());
+
+						// Assign the locked object an id
 						let kid = object::id(&k);
+
+
 						transfer::public_transfer(l, BOB);
 						transfer::public_transfer(k, BOB);
 						(cid, kid)
@@ -186,21 +210,40 @@ module escrow::shared {
 						ts.next_tx(ALICE);
 						let c = test_coin(&mut ts);
 						let cid = object::id(&c);
-						// Creating the escrow object
+
+						// Creating the escrow passing:
+							// Alice's coin
+							// Coin Alice is interested in
+							// Owner of the coin of interest
+							// Test scenario coin transaction
 						create(c, ik2, BOB, ts.ctx());
+
 						// Returning the coin id
 						cid
 				};
 
+				// Swap completed by Bob
 				{
 						ts.next_tx(BOB);
+
+						// Finds last object type shared (previous transaction)
+						// Assign the shared input type to variable
+						// Simulates accepting a shared input (take_shared())
+						// Infers mandatory type to be Escrow (Escrow<Coin<SUI>>)
 						let escrow: Escrow<Coin<SUI>> = ts.take_shared();
+
+						// Simulates accepting owned inputs (take_from_sender())
+						// Sender is Bob
 						let k2: Key = ts.take_from_sender();
 						let l2: Locked<Coin<SUI>> = ts.take_from_sender();
 						let c = escrow.swap(k2, l2, ts.ctx());
 
+						// Passing coin to be transferred & owner of coin to transfer function
 						transfer::public_transfer(c, BOB);
 				};
+
+				// Checking for successful swap
+				// Verifies commitment of previous transaction (next_tx) before running checks
 				ts.next_tx(@0x0);
 
 				{
