@@ -76,7 +76,7 @@ export const publishPackage = async ({
 	const txb = new Transaction();
 
 	const { modules, dependencies } = JSON.parse(
-		execSync(`${SUI_BIN} move build --dump-bytecode-as-base64 --path ${packagePath}`, {
+		execSync(`${SUI_BIN} move build --dump-bytecode-as-base64 --path "${packagePath}"`, {
 			encoding: 'utf-8',
 		}),
 	);
